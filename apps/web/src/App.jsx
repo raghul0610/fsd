@@ -49,7 +49,7 @@ function Layout() {
   }
 
   const nav = [
-    ['/', 'dashboardTitle'],
+    ['/', 'dashboard'],
     ['/chat', 'chat'],
     ['/assessment', 'assessment'],
     ['/history', 'history'],
