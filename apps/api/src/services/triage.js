@@ -7,7 +7,7 @@ const criticalPatterns = [
   /heavy bleeding/i,
   /chest pain/i,
   /convulsion/i,
-  /seizure/i,
+  /seizure/i,\n  /மூச்சுத்திணறல்|நினைவிழப்பு|மார்பு வலி|வலிப்பு|கடுமையான இரத்தப்போக்கு/i,\n  /सांस लेने में कठिनाई|बेहोशी|सीने में दर्द|दौरा|भारी रक्तस्राव/i,
 ];
 
 export function assessRisk({ symptoms = '', severity = 1, durationDays = 0 }) {
