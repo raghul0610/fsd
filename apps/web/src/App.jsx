@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { db, getDeviceId, seedLocal } from './db/db';
 import { searchKnowledge } from './services/knowledge';
 import { createAIProvider } from './services/ai';
-import { assessRisk } from './services/triage';
+import { assessRisk, parseAssessmentInput } from './services/triage';
 import { enqueue, syncNow } from './services/sync';
 import { api } from './services/api';
 import { isSpeechRecognitionSupported, isSpeechSynthesisSupported, speakText, startSpeechRecognition, stopSpeaking } from './services/voice';
@@ -244,29 +244,101 @@ function translateRiskReason(language, risk) {
 }
 
 function Assessment({ language }) {
+  const [input, setInput] = useState('');
   const [symptoms, setSymptoms] = useState('');
-  const [severity, setSeverity] = useState(1);
-  const [durationDays, setDuration] = useState(1);
+  const [severity, setSeverity] = useState('');
+  const [durationDays, setDurationDays] = useState('');
   const [result, setResult] = useState(null);
+  const [listening, setListening] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  const speechRecognitionSupported = isSpeechRecognitionSupported();
+
+  function parseInput(value) {
+    setInput(value);
+    const parsed = parseAssessmentInput(value, language);
+    setSymptoms(parsed.symptoms);
+    if (parsed.severity !== null) setSeverity(String(parsed.severity));
+    if (parsed.durationDays !== null) setDurationDays(String(parsed.durationDays));
+  }
+
+  function toggleVoiceInput() {
+    if (listening || !speechRecognitionSupported) {
+      if (!speechRecognitionSupported) setNotice(t(language, 'voiceRecognitionUnsupported'));
+      return;
+    }
+
+    setListening(true);
+    setNotice(t(language, 'assessmentListening'));
+    startSpeechRecognition({
+      language,
+      onResult: (transcript) => {
+        parseInput(input ? input + ' ' + transcript : transcript);
+        setNotice(t(language, 'voiceCaptured'));
+      },
+      onError: () => {
+        setListening(false);
+        setNotice(t(language, 'voiceRecognitionError'));
+      },
+      onEnd: () => setListening(false),
+    });
+  }
 
   async function run(event) {
     event.preventDefault();
-    if (!symptoms.trim()) return;
-    const risk = assessRisk({ symptoms, severity, durationDays });
+    if (!symptoms.trim() || !severity || !durationDays) {
+      setNotice(t(language, 'assessmentMissingFields'));
+      return;
+    }
+
+    const normalizedSeverity = Math.min(5, Math.max(1, Number(severity)));
+    const normalizedDuration = Math.max(0, Number(durationDays));
+    const risk = assessRisk({
+      symptoms: symptoms.trim(),
+      severity: normalizedSeverity,
+      durationDays: normalizedDuration,
+    });
+
     const id = crypto.randomUUID();
     const deviceId = await getDeviceId();
-    const assessment = { id, deviceId, symptoms: symptoms.trim(), severity, durationDays, ...risk, createdAt: Date.now() };
+    const assessment = {
+      id,
+      deviceId,
+      symptoms: symptoms.trim(),
+      severity: normalizedSeverity,
+      durationDays: normalizedDuration,
+      ...risk,
+      createdAt: Date.now(),
+    };
+
     await db.assessments.put(assessment);
     await enqueue({ entityType: 'assessment', entityId: id, payload: assessment });
     setResult(risk);
+    setNotice(t(language, 'assessmentSaved'));
   }
 
-  return <><h1>{t(language, 'symptomAssessment')}</h1><p className="muted">{t(language, 'triageWarning')}</p>
+  return <><h1>{t(language, 'symptomAssessment')}</h1>
+    <p className="muted">{t(language, 'assessmentInputHelp')}</p>
     <form className="panel form" onSubmit={run}>
-      <label>{t(language, 'symptoms')}<textarea required value={symptoms} onChange={(e) => setSymptoms(e.target.value)} placeholder={t(language, 'symptomsPlaceholder')} /></label>
-      <label>{t(language, 'severity')}<input type="number" min="1" max="5" value={severity} onChange={(e) => setSeverity(Number(e.target.value))} /></label>
-      <label>{t(language, 'duration')}<input type="number" min="0" value={durationDays} onChange={(e) => setDuration(Number(e.target.value))} /></label>
-      <button>{t(language, 'assessRisk')}</button>
+      <label>{t(language, 'assessmentTellUs')}
+        <textarea required value={input} onChange={(e) => parseInput(e.target.value)} placeholder={t(language, 'assessmentInputPlaceholder')} />
+      </label>
+      <div className="row">
+        {speechRecognitionSupported && <button type="button" onClick={toggleVoiceInput} disabled={listening}>{listening ? t(language, 'listeningShort') : t(language, 'speakAssessment')}</button>}
+        <button type="submit">{t(language, 'assessRisk')}</button>
+      </div>
+      {notice && <div className="panel notice">{notice}</div>}
+      <div className="panel">
+        <b>{t(language, 'extractedDetails')}</b>
+        <p>{t(language, 'symptoms')}: {symptoms || t(language, 'notDetected')}</p>
+        <p>{t(language, 'severity')}: {severity || t(language, 'notDetected')}</p>
+        <p>{t(language, 'duration')}: {durationDays ? durationDays : t(language, 'notDetected')}</p>
+      </div>
+      <p className="muted">{t(language, 'assessmentManualFallback')}</p>
+      <div className="row">
+        <label>{t(language, 'severity')}<input type="number" min="1" max="5" value={severity} onChange={(e) => setSeverity(e.target.value)} /></label>
+        <label>{t(language, 'duration')}<input type="number" min="0" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} /></label>
+      </div>
     </form>
     {result && <div className={`result ${result.risk.toLowerCase()}`}><h2>{result.risk}</h2><p>{translateRiskReason(language, result.risk)}</p></div>}
   </>;
