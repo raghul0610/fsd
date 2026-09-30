@@ -8,7 +8,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "node -e \"console.log('JavaScript project: no TypeScript typecheck required')\"",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "build": "node -e \"console.log('API build: no compilation step required')\""
   },
   "dependencies": {
     "cors": "^2.8.5",
