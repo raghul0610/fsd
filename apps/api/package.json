@@ -1,0 +1,26 @@
+{
+  "name": "api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "node -e \"console.log('JavaScript project: no TypeScript typecheck required')\"",
+    "seed": "node src/seed.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "mongoose": "^8.18.0",
+    "pino": "^9.9.4",
+    "zod": "^4.1.8"
+  },
+  "devDependencies": {
+    "eslint": "^9.35.0",
+    "supertest": "^7.1.4",
+    "vitest": "^3.2.4"
+  }
+}
