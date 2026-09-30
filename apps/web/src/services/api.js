@@ -7,7 +7,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  knowledge: (q = '') => request(`/knowledge?q=${encodeURIComponent(q)}`),
+  knowledge: (q = '', language = 'en') => request(`/knowledge?q=${encodeURIComponent(q)}&language=${encodeURIComponent(language)}`),
   facilities: () => request('/facilities'),
   workers: () => request('/workers'),
   conversations: (deviceId) => request(`/conversations?deviceId=${encodeURIComponent(deviceId)}`),
