@@ -6,6 +6,7 @@ import { createAIProvider } from './services/ai';
 import { assessRisk } from './services/triage';
 import { enqueue, syncNow } from './services/sync';
 import { api } from './services/api';
+import { isSpeechRecognitionSupported, isSpeechSynthesisSupported, speakText, startSpeechRecognition, stopSpeaking } from './services/voice';
 import { LANGUAGES, getLanguage, setLanguage as saveLanguage, t } from './services/i18n';
 import './style.css';
 
@@ -99,6 +100,59 @@ function Chat({ language }) {
   const [q, setQ] = useState('');
   const [messages, setMessages] = useState([]);
   const [notice, setNotice] = useState('');
+  const [listening, setListening] = useState(false);
+  const [speakingIndex, setSpeakingIndex] = useState(null);
+
+  const speechRecognitionSupported = isSpeechRecognitionSupported();
+  const speechSynthesisSupported = isSpeechSynthesisSupported();
+
+  useEffect(() => () => {
+    stopSpeaking();
+  }, []);
+
+  function toggleVoiceInput() {
+    if (listening) return;
+
+    if (!speechRecognitionSupported) {
+      setNotice(t(language, 'voiceRecognitionUnsupported'));
+      return;
+    }
+
+    setNotice(t(language, 'listening'));
+    setListening(true);
+
+    startSpeechRecognition({
+      language,
+      onResult: (transcript) => {
+        setQ((current) => current ? current + ' ' + transcript : transcript);
+        setNotice(t(language, 'voiceCaptured'));
+      },
+      onError: () => {
+        setNotice(t(language, 'voiceRecognitionError'));
+        setListening(false);
+      },
+      onEnd: () => setListening(false),
+    });
+  }
+
+  function toggleSpeech(text, index) {
+    if (!speechSynthesisSupported) {
+      setNotice(t(language, 'voiceSynthesisUnsupported'));
+      return;
+    }
+
+    if (speakingIndex === index) {
+      stopSpeaking();
+      setSpeakingIndex(null);
+      return;
+    }
+
+    const started = speakText(text, language);
+    if (started) {
+      setSpeakingIndex(index);
+      setNotice('');
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -151,8 +205,13 @@ function Chat({ language }) {
   return <><h1>{t(language, 'healthChat')}</h1>
     <p className="muted">{t(language, 'chatHelp')}</p>
     {notice && <div className="panel notice">{notice}</div>}
-    <div className="chat">{messages.map((m, i) => <div key={i} className="bubble"><b>{t(language, 'you')}</b><p>{m.q}</p><b>{t(language, 'healthInformation')}</b><p>{m.answer}</p></div>)}</div>
-    <form onSubmit={ask} className="row"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t(language, 'askPlaceholder')} /><button>{t(language, 'ask')}</button></form>
+    <div className="chat">{messages.map((m, i) => <div key={i} className="bubble"><b>{t(language, 'you')}</b><p>{m.q}</p><b>{t(language, 'healthInformation')}</b><p>{m.answer}</p>{speechSynthesisSupported && <button type="button" className="voice-button" onClick={() => toggleSpeech(m.answer, i)}>{speakingIndex === i ? t(language, 'stopVoice') : t(language, 'listen')}</button>}</div>)}</div>
+    <form onSubmit={ask} className="row chat-input-row">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t(language, 'askPlaceholder')} />
+      {speechRecognitionSupported && <button type="button" onClick={toggleVoiceInput} disabled={listening} aria-label={t(language, 'voiceInput')}>{listening ? t(language, 'listeningShort') : t(language, 'voiceInput')}</button>}
+      <button type="submit">{t(language, 'ask')}</button>
+    </form>
+    <p className="muted voice-note">{t(language, 'voiceNote')}</p>
   </>;
 }
 
