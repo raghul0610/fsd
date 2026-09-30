@@ -1,7 +1,7 @@
 import { searchKnowledge } from './knowledge';
 
 function normalize(value = '') {
-  return String(value).normalize('NFKC').trim().toLowerCase().replace(/[?!,.;:()[\\]{}\"'`]/g, ' ').replace(/\\s+/g, ' ');
+  return String(value).normalize('NFKC').trim().toLowerCase().replace(/[?!,.;:()[\\]{}"'`]/g, ' ').replace(/\\s+/g, ' ');
 }
 
 const messages = {
