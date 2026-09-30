@@ -38,21 +38,25 @@ export function startSpeechRecognition({ language = 'en', onResult, onError, onE
 }
 
 export function isSpeechSynthesisSupported() {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  return typeof window !== 'undefined' && Boolean(
+    window.speechSynthesis &&
+    window.SpeechSynthesisUtterance
+  );
 }
 
 export function speakText(text, language = 'en') {
   if (!isSpeechSynthesisSupported() || !text?.trim()) return false;
 
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text.trim());
+  const Utterance = window.SpeechSynthesisUtterance;
+  const utterance = new Utterance(text.trim());
   utterance.lang = getVoiceLocale(language);
   window.speechSynthesis.speak(utterance);
   return true;
 }
 
 export function stopSpeaking() {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
 }
