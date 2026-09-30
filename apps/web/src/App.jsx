@@ -69,24 +69,109 @@ function Dashboard({ online }) {
 function Card({ to, title, text }) { return <NavLink className="card" to={to}><h2>{title}</h2><p>{text}</p><span>Open →</span></NavLink>; }
 
 function Chat() {
-  const [q, setQ] = useState(''); const [messages, setMessages] = useState([]); const [notice, setNotice] = useState('');
-  useEffect(() => { db.conversations.orderBy('updatedAt').reverse().limit(10).toArray().then(async (conversations) => { const rows = []; for (const conversation of conversations) { const history = await db.messages.where('conversationId').equals(conversation.id).sortBy('createdAt'); if (history.length >= 2) rows.push({ q: history[history.length - 2].content, answer: history[history.length - 1].content }); } setMessages(rows.reverse()); }); }, []);
-  async function ask(event) {
-    event.preventDefault(); if (!q.trim()) return;
-    const question = q.trim();
-    const provider = createAIProvider('local');
-    const response = await provider.answer(question);
-    const answer = response.text;
-    const conversationId = crypto.randomUUID(); const deviceId = await getDeviceId(); const now = Date.now();
-    const userMessage = { id: crypto.randomUUID(), conversationId, role: 'user', content: question, createdAt: now };
-    const assistantMessage = { id: crypto.randomUUID(), conversationId, role: 'assistant', content: answer, createdAt: now + 1 };
-    const conversation = { id: conversationId, deviceId, title: question.slice(0, 80), updatedAt: now, messages: [userMessage, assistantMessage] };
-    await db.conversations.put({ id: conversation.id, deviceId: conversation.deviceId, title: conversation.title, updatedAt: conversation.updatedAt });
-    await db.messages.bulkAdd([userMessage, assistantMessage]);
-    await enqueue({ entityType: 'conversation', entityId: conversationId, payload: conversation });
-    setMessages((current) => [...current, { q: question, answer }]); setQ(''); setNotice(navigator.onLine ? 'Saved locally and queued for synchronization.' : 'Saved on this device. It will synchronize when connectivity returns.');
+  const [q, setQ] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const conversations = await db.conversations.orderBy('updatedAt').reverse().limit(10).toArray();
+      const rows = [];
+      for (const conversation of conversations) {
+        const history = await db.messages.where('conversationId').equals(conversation.id).sortBy('createdAt');
+        if (history.length >= 2) {
+          rows.push({
+            q: history[history.length - 2].content,
+            answer: history[history.length - 1].content,
+          });
+        }
+      }
+      setMessages(rows.reverse());
+    })();
+  }, []);
+
+  async function getLocalContext() {
+    const [assessments, conversations] = await Promise.all([
+      db.assessments.orderBy('createdAt').reverse().limit(5).toArray(),
+      db.conversations.orderBy('updatedAt').reverse().limit(5).toArray(),
+    ]);
+    return { assessments, conversations };
   }
-  return <><h1>Health Chat</h1><p className="muted">Answers are retrieved from the local knowledge base. No cloud model is required.</p>{notice && <div className="panel notice">{notice}</div>}<div className="chat">{messages.map((m, i) => <div key={i} className="bubble"><b>You</b><p>{m.q}</p><b>Health information</b><p>{m.answer}</p></div>)}</div><form onSubmit={ask} className="row"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about fever, hygiene, warning signs..."/><button>Ask</button></form></>;
+
+  async function ask(event) {
+    event.preventDefault();
+    if (!q.trim()) return;
+
+    const question = q.trim();
+    const context = await getLocalContext();
+    const provider = createAIProvider('local');
+    const response = await provider.answer(question, context);
+    const answer = response.text;
+
+    const conversationId = crypto.randomUUID();
+    const deviceId = await getDeviceId();
+    const now = Date.now();
+    const userMessage = {
+      id: crypto.randomUUID(),
+      conversationId,
+      role: 'user',
+      content: question,
+      createdAt: now,
+    };
+    const assistantMessage = {
+      id: crypto.randomUUID(),
+      conversationId,
+      role: 'assistant',
+      content: answer,
+      createdAt: now + 1,
+    };
+    const conversation = {
+      id: conversationId,
+      deviceId,
+      title: question.slice(0, 80),
+      updatedAt: now,
+      messages: [userMessage, assistantMessage],
+    };
+
+    await db.conversations.put({
+      id: conversation.id,
+      deviceId: conversation.deviceId,
+      title: conversation.title,
+      updatedAt: conversation.updatedAt,
+    });
+    await db.messages.bulkAdd([userMessage, assistantMessage]);
+    await enqueue({
+      entityType: 'conversation',
+      entityId: conversationId,
+      payload: conversation,
+    });
+
+    setMessages((current) => [...current, { q: question, answer }]);
+    setQ('');
+    setNotice(
+      navigator.onLine
+        ? 'Saved locally and queued for synchronization.'
+        : 'Saved on this device. It will synchronize when connectivity returns.'
+    );
+  }
+
+  return <>
+    <h1>Health Chat</h1>
+    <p className="muted">Ask about saved health information, your assessment, or your previous history. Responses are generated locally from stored data.</p>
+    {notice && <div className="panel notice">{notice}</div>}
+    <div className="chat">
+      {messages.map((m, i) => (
+        <div key={i} className="bubble">
+          <b>You</b><p>{m.q}</p>
+          <b>Health information</b><p>{m.answer}</p>
+        </div>
+      ))}
+    </div>
+    <form onSubmit={ask} className="row">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about fever, your assessment, previous history..." />
+      <button>Ask</button>
+    </form>
+  </>;
 }
 
 function History() {
