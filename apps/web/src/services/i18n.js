@@ -196,13 +196,16 @@ const translations = {
   },
 };
 
+const LANGUAGE_KEY = 'rural-health-language';
+
 export function getLanguage() {
-  return localStorage.getItem('rural-health-language') || 'en';
+  if (typeof window === 'undefined') return 'en';
+  return window.localStorage.getItem(LANGUAGE_KEY) || 'en';
 }
 
 export function setLanguage(code) {
   const selected = LANGUAGES.some((language) => language.code === code) ? code : 'en';
-  localStorage.setItem('rural-health-language', selected);
+  if (typeof window !== 'undefined') window.localStorage.setItem(LANGUAGE_KEY, selected);
   return selected;
 }
 
