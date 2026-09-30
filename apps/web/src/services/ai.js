@@ -1,7 +1,7 @@
 import { searchKnowledge } from './knowledge';
 
 function normalize(value = '') {
-  return String(value).trim().toLowerCase();
+  return String(value).normalize('NFKC').trim().toLowerCase().replace(/[?!,.;:()[\\]{}\"'`]/g, ' ').replace(/\\s+/g, ' ');
 }
 
 const messages = {
@@ -98,7 +98,7 @@ function asksAboutHistory(question) {
 }
 
 function asksForEmergencyHelp(question) {
-  return /(emergency|urgent|danger|serious|should i go to hospital|need hospital|can't breathe|cannot breathe|unconscious|heavy bleeding|severe chest pain|அவசரம்|மூச்சுத்திணறல்|நினைவிழப்பு|மார்பு வலி|आपातकाल|सांस|बेहोशी|सीने में दर्द)/i.test(question);
+  return /(emergency|urgent|danger|serious|hospital|ambulance|can't breathe|cannot breathe|breathing difficulty|unconscious|heavy bleeding|severe chest pain|seizure|convulsion|அவசரம்|மருத்துவமனை|ஆம்புலன்ஸ்|மூச்சுத்திணறல்|மூச்சு.*சிரமம்|நினைவிழப்பு|இரத்தப்போக்கு|மார்பு வலி|வலிப்பு|आपातकाल|अस्पताल|एम्बुलेंस|सांस.*दिक्कत|बेहोशी|खून.*बहना|सीने में दर्द|दौरा)/i.test(question);
 }
 
 export class LocalAIProvider {
@@ -126,7 +126,7 @@ export class LocalAIProvider {
 
     if (asksAboutHistory(normalized)) {
       return {
-        text: `${m.historyHeader}\n\nAssessment history:\n${recentAssessmentSummary(assessments, language)}\n\nRecent chat topics:\n${recentConversationSummary(conversations, language)}`,
+        text: `${m.historyHeader}\n\n${language === 'ta' ? 'மதிப்பீட்டு வரலாறு:' : language === 'hi' ? 'आकलन इतिहास:' : 'Assessment history:'}\n${recentAssessmentSummary(assessments, language)}\n\n${language === 'ta' ? 'சமீபத்திய உரையாடல் தலைப்புகள்:' : language === 'hi' ? 'हाल की चैट के विषय:' : 'Recent chat topics:'}\n${recentConversationSummary(conversations, language)}`,
         sources: [],
         context: 'history',
       };
