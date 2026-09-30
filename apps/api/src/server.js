@@ -9,7 +9,6 @@ import {
   Conversation,
   Assessment,
   KnowledgeDocument,
-  KnowledgeChunk,
   HealthcareFacility,
   HealthcareWorker,
   SyncOperation,
@@ -19,6 +18,28 @@ import { notFound, errorHandler } from './middleware/error.js';
 
 const app = express();
 const log = pino({ level: process.env.LOG_LEVEL || 'info' });
+const memory = {
+  knowledge: [],
+  facilities: [],
+  workers: [],
+  assessments: new Map(),
+  conversations: new Map(),
+  sync: new Set(),
+  users: new Map(),
+};
+
+const demoKnowledge = [
+  { id: 'k-fever', title: 'Fever basics', category: 'General', language: 'en', source: 'Demonstration curated content', verifiedAt: '2026-09-01', keywords: ['fever', 'temperature', 'fluids'], content: 'For a mild fever, rest and maintain adequate fluids. Seek professional care when symptoms are severe, persistent, or worsening.' },
+  { id: 'k-danger', title: 'Urgent warning signs', category: 'Emergency', language: 'en', source: 'Demonstration safety content', verifiedAt: '2026-09-01', keywords: ['breathing', 'unconscious', 'severe', 'chest pain'], content: 'Severe breathing difficulty, loss of consciousness, severe chest pain, or rapidly worsening symptoms require urgent professional or emergency care.' },
+  { id: 'k-prevention', title: 'Prevention basics', category: 'Prevention', language: 'en', source: 'Demonstration curated content', verifiedAt: '2026-09-01', keywords: ['water', 'hygiene', 'hands'], content: 'Use safe drinking water, maintain hand hygiene, and seek professional guidance for persistent or concerning symptoms.' },
+];
+const demoFacilities = [{ id: 'f-phc-1', name: 'Demo Primary Health Centre', type: 'PHC', location: 'Local demonstration directory', contact: 'Verify locally', hours: 'Verify locally' }];
+const demoWorkers = [{ id: 'w-asha-1', name: 'Demo Community Health Worker', role: 'ASHA', facility: 'Demo Primary Health Centre', contact: 'Verify locally', language: 'en' }];
+
+memory.knowledge.push(...demoKnowledge);
+memory.facilities.push(...demoFacilities);
+memory.workers.push(...demoWorkers);
+
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '1mb' }));
 
@@ -122,15 +143,19 @@ app.post('/api/sync', async (req, res, next) => {
       const p = assessmentSchema.parse({ ...sync.payload, id: sync.entityId, deviceId: sync.deviceId });
       const risk = assessRisk(p);
       const doc = { ...p, ...risk };
-      if (isMongoReady()) await Assessment.findOneAndUpdate({ id: p.id }, doc, { upsert: true, new: true, setDefaultsOnInsert: true }); else memory.assessments.set(p.id, doc);
+      if (isMongoReady()) await Assessment.findOneAndUpdate({ id: p.id }, doc, { upsert: true, new: true, setDefaultsOnInsert: true });
+      else memory.assessments.set(p.id, doc);
     } else if (sync.entityType === 'conversation') {
       const p = conversationSchema.parse({ ...sync.payload, id: sync.entityId, deviceId: sync.deviceId });
-      if (isMongoReady()) await Conversation.findOneAndUpdate({ id: p.id }, p, { upsert: true, new: true, setDefaultsOnInsert: true }); else memory.conversations.set(p.id, p);
+      if (isMongoReady()) await Conversation.findOneAndUpdate({ id: p.id }, p, { upsert: true, new: true, setDefaultsOnInsert: true });
+      else memory.conversations.set(p.id, p);
     } else {
       const p = z.object({ name: z.string().max(100).optional(), language: z.string().optional() }).parse(sync.payload);
-      if (isMongoReady()) await UserProfile.findOneAndUpdate({ deviceId: sync.deviceId }, { deviceId: sync.deviceId, ...p }, { upsert: true, new: true, setDefaultsOnInsert: true }); else memory.users.set(sync.deviceId, { deviceId: sync.deviceId, ...p });
+      if (isMongoReady()) await UserProfile.findOneAndUpdate({ deviceId: sync.deviceId }, { deviceId: sync.deviceId, ...p }, { upsert: true, new: true, setDefaultsOnInsert: true });
+      else memory.users.set(sync.deviceId, { deviceId: sync.deviceId, ...p });
     }
-    if (isMongoReady()) await SyncOperation.create({ id: sync.id, deviceId: sync.deviceId, entityType: sync.entityType, entityId: sync.entityId, operation: sync.operation }); else memory.sync.add(sync.id);
+    if (isMongoReady()) await SyncOperation.create({ id: sync.id, deviceId: sync.deviceId, entityType: sync.entityType, entityId: sync.entityId, operation: sync.operation });
+    else memory.sync.add(sync.id);
     res.json({ success: true, duplicate: false, operationId: sync.id });
   } catch (e) { next(e); }
 });
@@ -138,20 +163,9 @@ app.post('/api/sync', async (req, res, next) => {
 app.use(notFound);
 app.use(errorHandler);
 
-const memory = { knowledge: [], facilities: [], workers: [], assessments: new Map(), conversations: new Map(), sync: new Set(), users: new Map() };
-
-const demoKnowledge = [
-  { id: 'k-fever', title: 'Fever basics', category: 'General', language: 'en', source: 'Demonstration curated content', verifiedAt: '2026-09-01', keywords: ['fever', 'temperature', 'fluids'], content: 'For a mild fever, rest and maintain adequate fluids. Seek professional care when symptoms are severe, persistent, or worsening.' },
-  { id: 'k-danger', title: 'Urgent warning signs', category: 'Emergency', language: 'en', source: 'Demonstration safety content', verifiedAt: '2026-09-01', keywords: ['breathing', 'unconscious', 'severe', 'chest pain'], content: 'Severe breathing difficulty, loss of consciousness, severe chest pain, or rapidly worsening symptoms require urgent professional or emergency care.' },
-  { id: 'k-prevention', title: 'Prevention basics', category: 'Prevention', language: 'en', source: 'Demonstration curated content', verifiedAt: '2026-09-01', keywords: ['water', 'hygiene', 'hands'], content: 'Use safe drinking water, maintain hand hygiene, and seek professional guidance for persistent or concerning symptoms.' },
-];
-const demoFacilities = [{ id: 'f-phc-1', name: 'Demo Primary Health Centre', type: 'PHC', location: 'Local demonstration directory', contact: 'Verify locally', hours: 'Verify locally' }];
-const demoWorkers = [{ id: 'w-asha-1', name: 'Demo Community Health Worker', role: 'ASHA', facility: 'Demo Primary Health Centre', contact: 'Verify locally', language: 'en' }];
-memory.knowledge.push(...demoKnowledge); memory.facilities.push(...demoFacilities); memory.workers.push(...demoWorkers);
-
 const isMongoReady = () => mongoose.connection.readyState === 1;
-
 const port = Number(process.env.PORT || 4000);
+
 export async function start() {
   if (process.env.MONGODB_URI) {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
@@ -163,4 +177,5 @@ export async function start() {
 }
 
 if (process.env.NODE_ENV !== 'test') start().catch((e) => { log.error(e); process.exit(1); });
+
 export default app;
