@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { db, getDeviceId, seedLocal } from './db/db';
 import { searchKnowledge } from './services/knowledge';
@@ -13,18 +13,39 @@ function Layout() {
   const [syncState, setSyncState] = useState('idle');
 
   useEffect(() => {
-    const initialize = async () => { await seedLocal(); if (navigator.onLine) { setSyncState('syncing'); const result = await syncNow(); setSyncState(result.failed ? 'error' : 'synced'); } };
+    const initialize = async () => {
+      await seedLocal();
+      if (navigator.onLine) {
+        setSyncState('syncing');
+        const result = await syncNow();
+        setSyncState(result.failed ? 'error' : 'synced');
+      }
+    };
+
     initialize();
-    const on = async () => { setOnline(true); setSyncState('syncing'); const result = await syncNow(); setSyncState(result.failed ? 'error' : 'synced'); };
+    const on = async () => {
+      setOnline(true);
+      setSyncState('syncing');
+      const result = await syncNow();
+      setSyncState(result.failed ? 'error' : 'synced');
+    };
     const off = () => setOnline(false);
-    addEventListener('online', on); addEventListener('offline', off);
-    return () => { removeEventListener('online', on); removeEventListener('offline', off); };
+
+    addEventListener('online', on);
+    addEventListener('offline', off);
+    return () => {
+      removeEventListener('online', on);
+      removeEventListener('offline', off);
+    };
   }, []);
 
   return <div className="app min-h-screen">
     <header>
       <div><strong>Rural Health</strong><span className="sub">Offline-first healthcare</span></div>
-      <span className={`status ${online ? 'on' : 'off'}`}>{online ? 'ONLINE' : 'OFFLINE'}{syncState === 'syncing' ? ' · SYNCING' : syncState === 'synced' ? ' · SYNCED' : syncState === 'error' ? ' · SYNC ERROR' : ''}</span>
+      <span className={`status ${online ? 'on' : 'off'}`}>
+        {online ? 'ONLINE' : 'OFFLINE'}
+        {syncState === 'syncing' ? ' · SYNCING' : syncState === 'synced' ? ' · SYNCED' : syncState === 'error' ? ' · SYNC ERROR' : ''}
+      </span>
     </header>
     <nav>{[['/','Dashboard'],['/chat','Chat'],['/assessment','Assessment'],['/history','History'],['/knowledge','Knowledge'],['/facilities','Facilities'],['/sync','Sync'],['/settings','Settings']].map(([path, label]) => <NavLink key={path} to={path}>{label}</NavLink>)}</nav>
     <main className="mx-auto"><Routes>
@@ -80,14 +101,28 @@ function Assessment() {
 
 function Knowledge() {
   const [q, setQ] = useState(''); const [docs, setDocs] = useState([]);
-  async function load(query = '') { const local = await searchKnowledge(query); setDocs(local); if (navigator.onLine) { try { const remote = await api.knowledge(query); if (remote.data?.length) { await db.knowledge.bulkPut(remote.data); setDocs(remote.data); } } catch { /* local-first fallback */ } } }
+  async function load(query = '') {
+    const local = await searchKnowledge(query);
+    setDocs(local);
+    if (navigator.onLine) {
+      try {
+        const remote = await api.knowledge(query);
+        if (remote.data?.length) {
+          await db.knowledge.bulkPut(remote.data);
+          setDocs(remote.data);
+        }
+      } catch {
+        setDocs(local);
+      }
+    }
+  }
   useEffect(() => { load(''); }, []);
   return <><h1>Health Library</h1><div className="row"><input value={q} onChange={(e) => { setQ(e.target.value); load(e.target.value); }} placeholder="Search health topics"/></div><div className="list">{docs.map((d) => <article className="panel" key={d.id}><h2>{d.title}</h2><small>{d.category} · {d.source}</small><p>{d.content}</p></article>)}</div></>;
 }
 
 function Facilities() {
   const [facilities, setFacilities] = useState([]); const [workers, setWorkers] = useState([]);
-  useEffect(() => { (async () => { const lf = await db.facilities.toArray(); const lw = await db.workers.toArray(); setFacilities(lf); setWorkers(lw); if (navigator.onLine) { try { const [f, w] = await Promise.all([api.facilities(), api.workers()]); if (f.data?.length) { await db.facilities.bulkPut(f.data); setFacilities(f.data); } if (w.data?.length) { await db.workers.bulkPut(w.data); setWorkers(w.data); } } catch {} } })(); }, []);
+  useEffect(() => { (async () => { const lf = await db.facilities.toArray(); const lw = await db.workers.toArray(); setFacilities(lf); setWorkers(lw); if (navigator.onLine) { try { const [f, w] = await Promise.all([api.facilities(), api.workers()]); if (f.data?.length) { await db.facilities.bulkPut(f.data); setFacilities(f.data); } if (w.data?.length) { await db.workers.bulkPut(w.data); setWorkers(w.data); } } catch { setFacilities(lf); setWorkers(lw); } } })(); }, []);
   return <><h1>Nearby Care Directory</h1><p className="muted">Directory records must be verified locally before relying on them.</p><h2>Facilities</h2>{facilities.map((f) => <div className="panel" key={f.id}><h2>{f.name}</h2><p>{f.type} · {f.location}</p><p>{f.contact} · {f.hours}</p></div>)}<h2>Healthcare Workers</h2>{workers.map((w) => <div className="panel" key={w.id}><h2>{w.name}</h2><p>{w.role} · {w.facility}</p><p>{w.contact}</p></div>)}</>;
 }
 
