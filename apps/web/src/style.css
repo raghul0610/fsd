@@ -7,3 +7,4 @@
 
 .notice{border-left:4px solid #0f766e}
 button:disabled{opacity:.55;cursor:not-allowed}
+.voice-button{margin-top:8px;padding:8px 12px;font-size:13px}.chat-input-row{align-items:stretch}.chat-input-row input{min-width:0}.voice-note{font-size:12px;margin-top:-5px}@media(max-width:650px){.chat-input-row{flex-direction:column}}
