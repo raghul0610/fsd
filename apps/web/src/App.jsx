@@ -13,12 +13,13 @@ function Layout() {
   const [syncState, setSyncState] = useState('idle');
 
   useEffect(() => {
+    let mounted = true;
     const initialize = async () => {
       await seedLocal();
-      if (navigator.onLine) {
+      if (mounted && navigator.onLine) {
         setSyncState('syncing');
         const result = await syncNow();
-        setSyncState(result.failed ? 'error' : 'synced');
+        if (mounted) setSyncState(result.failed ? 'error' : 'synced');
       }
     };
 
@@ -27,13 +28,14 @@ function Layout() {
       setOnline(true);
       setSyncState('syncing');
       const result = await syncNow();
-      setSyncState(result.failed ? 'error' : 'synced');
+      if (mounted) setSyncState(result.failed ? 'error' : 'synced');
     };
     const off = () => setOnline(false);
 
     addEventListener('online', on);
     addEventListener('offline', off);
     return () => {
+      mounted = false;
       removeEventListener('online', on);
       removeEventListener('offline', off);
     };
@@ -126,7 +128,21 @@ function Facilities() {
   return <><h1>Nearby Care Directory</h1><p className="muted">Directory records must be verified locally before relying on them.</p><h2>Facilities</h2>{facilities.map((f) => <div className="panel" key={f.id}><h2>{f.name}</h2><p>{f.type} · {f.location}</p><p>{f.contact} · {f.hours}</p></div>)}<h2>Healthcare Workers</h2>{workers.map((w) => <div className="panel" key={w.id}><h2>{w.name}</h2><p>{w.role} · {w.facility}</p><p>{w.contact}</p></div>)}</>;
 }
 
-function Sync() { const [items, setItems] = useState([]); const refresh = () => db.syncQueue.orderBy('createdAt').reverse().toArray().then(setItems); useEffect(refresh, []); async function go() { await syncNow(); refresh(); } return <><h1>Sync Center</h1><div className="panel"><p>Offline changes remain local until synchronization succeeds.</p><button onClick={go}>Sync now</button></div><div className="list">{items.map((x) => <div className="panel" key={x.id}><b>{x.entityType}</b> · {x.operation}<span className="right">{x.status}</span>{x.error && <p className="error">{x.error}</p>}</div>)}</div></>; }
+function Sync() {
+  const [items, setItems] = useState([]);
+  const refresh = async () => {
+    const rows = await db.syncQueue.orderBy('createdAt').reverse().toArray();
+    setItems(rows);
+  };
+  useEffect(() => {
+    refresh();
+  }, []);
+  async function go() {
+    await syncNow();
+    await refresh();
+  }
+  return <><h1>Sync Center</h1><div className="panel"><p>Offline changes remain local until synchronization succeeds.</p><button onClick={go}>Sync now</button></div><div className="list">{items.map((x) => <div className="panel" key={x.id}><b>{x.entityType}</b> · {x.operation}<span className="right">{x.status}</span>{x.error && <p className="error">{x.error}</p>}</div>)}</div></>;
+}
 
 function Settings() { const [deviceId, setDeviceId] = useState(''); useEffect(() => { getDeviceId().then(setDeviceId); }, []); return <><h1>Settings</h1><div className="panel"><h2>Privacy</h2><p>This MVP does not require an account. A random device identifier is used only to associate local sync operations.</p><small>Device ID: {deviceId}</small></div><div className="panel"><h2>Language</h2><p>English is the current demonstration language. The data model is language-aware so regional translations can be added later.</p></div></>; }
 
