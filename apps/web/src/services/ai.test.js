@@ -52,6 +52,24 @@ describe('LocalAIProvider', () => {
     expect(result.text).toContain('Fever basics');
   });
 
+  it('recognizes palpitations even without a matching knowledge document and returns a history record', async () => {
+    const result = await provider.answer('I have palpitations');
+    expect(result.context).toBe('symptom');
+    expect(result.assessment).toMatchObject({
+      risk: 'MODERATE',
+      severity: 3,
+      durationDays: 0,
+    });
+    expect(result.text).toContain('Primary Health Centre (PHC)');
+    expect(result.text).toContain('not a diagnosis');
+  });
+
+  it('marks chat-reported chest pain as critical and advises urgent care', async () => {
+    const result = await provider.answer('I have chest pain');
+    expect(result.assessment.risk).toBe('CRITICAL');
+    expect(result.text).toContain('urgent medical care now');
+  });
+
   it('returns topic-specific local knowledge', async () => {
     const result = await provider.answer('what should I know about fever?');
     expect(result.context).toBe('knowledge');
