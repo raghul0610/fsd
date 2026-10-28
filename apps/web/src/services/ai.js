@@ -135,7 +135,7 @@ export class LocalAIProvider {
     }
 
     const symptomResult = detectSymptoms(question, language);
-    if (symptomResult.recognized.length) {
+    const isKnowledgeQuestion = /^(what should i know about|tell me about|explain|what is|what are|information about|how does|causes of|prevention of)\\b/i.test(normalized);\n    if (symptomResult.recognized.length && !isKnowledgeQuestion) {
       const parsed = parseAssessmentInput(question, language);
       const severity = symptomResult.emergency ? 5 : (parsed.severity ?? 3);
       const durationDays = parsed.durationDays ?? 0;
