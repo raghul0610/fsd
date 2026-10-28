@@ -1,7 +1,9 @@
 import { searchKnowledge } from './knowledge';
+import { detectSymptoms, symptomGuidance } from './symptoms';
+import { assessRisk, parseAssessmentInput } from './triage';
 
 function normalize(value = '') {
-  return String(value).normalize('NFKC').trim().toLowerCase().replace(/[?!,.;:()[\\]{}"'`]/g, ' ').replace(/\\s+/g, ' ');
+  return String(value).normalize('NFKC').trim().toLowerCase().replace(/[?!,.;:()[\]{}"'’`]/g, ' ').replace(/\s+/g, ' ');
 }
 
 const messages = {
@@ -129,6 +131,32 @@ export class LocalAIProvider {
         text: `${m.historyHeader}\n\n${language === 'ta' ? 'மதிப்பீட்டு வரலாறு:' : language === 'hi' ? 'आकलन इतिहास:' : 'Assessment history:'}\n${recentAssessmentSummary(assessments, language)}\n\n${language === 'ta' ? 'சமீபத்திய உரையாடல் தலைப்புகள்:' : language === 'hi' ? 'हाल की चैट के विषय:' : 'Recent chat topics:'}\n${recentConversationSummary(conversations, language)}`,
         sources: [],
         context: 'history',
+      };
+    }
+
+    const symptomResult = detectSymptoms(question, language);
+    if (symptomResult.recognized.length) {
+      const parsed = parseAssessmentInput(question, language);
+      const severity = symptomResult.emergency ? 5 : (parsed.severity ?? 3);
+      const durationDays = parsed.durationDays ?? 0;
+      const riskResult = assessRisk({ symptoms: question, severity, durationDays });
+      const assessment = {
+        symptoms: question,
+        severity,
+        durationDays,
+        ...riskResult,
+        risk: symptomResult.emergency ? 'CRITICAL' : riskResult.risk,
+        reason: symptomResult.emergency
+          ? 'A possible emergency warning sign was mentioned. Seek urgent professional care now.'
+          : 'Symptom reported in chat; severity and duration may be incomplete. This precautionary record is not a diagnosis.',
+      };
+      return {
+        text: symptomResult.emergency
+          ? `Your message includes a possible emergency warning sign. Please seek urgent medical care now or contact local emergency services. Do not wait for a chatbot response.\n\n${symptomGuidance(language, symptomResult.recognized)}`
+          : symptomGuidance(language, symptomResult.recognized),
+        sources: [],
+        context: 'symptom',
+        assessment,
       };
     }
 
