@@ -41,13 +41,13 @@ function normalize(value = '') {
 
 function extractDurationDays(text) {
   const normalized = normalize(text);
-  const match = normalized.match(/(?:for\s*)?(\d+)\s*(day|days|दिन|दिनों|நாள்|நாட்கள்)\b/i);
+  const match = normalized.match(/(?:for\s*)?(\d+)\s*(day|days|दिन|दिनों|நாள்|நாட்கள்)(?![\p{L}])/iu);
   if (match) return Number(match[1]);
 
-  const weekMatch = normalized.match(/(\d+)\s*(week|weeks|வாரம்|வாரங்கள்|सप्ताह|हफ्ते)\b/i);
+  const weekMatch = normalized.match(/(\d+)\s*(week|weeks|வாரம்|வாரங்கள்|सप्ताह|हफ्ते)(?![\p{L}])/iu);
   if (weekMatch) return Number(weekMatch[1]) * 7;
 
-  const monthMatch = normalized.match(/(\d+)\s*(month|months|மாதம்|மாதங்கள்|महीना|महीने)\b/i);
+  const monthMatch = normalized.match(/(\d+)\s*(month|months|மாதம்|மாதங்கள்|महीना|महीने)(?![\p{L}])/iu);
   if (monthMatch) return Number(monthMatch[1]) * 30;
 
   return null;

@@ -186,6 +186,14 @@ function Chat({ language }) {
     const response = await provider.answer(question, { ...context, language });
     const answer = response.text;
 
+    if (response.assessment) {
+      const id = crypto.randomUUID();
+      const deviceId = await getDeviceId();
+      const assessment = { id, deviceId, ...response.assessment, createdAt: Date.now() };
+      await db.assessments.put(assessment);
+      await enqueue({ entityType: 'assessment', entityId: id, payload: assessment });
+    }
+
     const conversationId = crypto.randomUUID();
     const deviceId = await getDeviceId();
     const now = Date.now();
