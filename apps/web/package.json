@@ -8,7 +8,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "node -e \"console.log('JavaScript project: no TypeScript typecheck required')\"",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.4",
