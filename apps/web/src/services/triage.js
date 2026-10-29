@@ -41,13 +41,13 @@ function normalize(value = '') {
 
 function extractDurationDays(text) {
   const normalized = normalize(text);
-  const match = normalized.match(/(?:for\s*)?(\d+)\s*(day|days|दिन|दिनों|நாள்|நாட்கள்)\b/i);
+  const match = normalized.match(/(?:for\s*)?(\d+)\s*(day|days|दिन|दिनों|நாள்|நாட்கள்)/i);
   if (match) return Number(match[1]);
 
-  const weekMatch = normalized.match(/(\d+)\s*(week|weeks|வாரம்|வாரங்கள்|सप्ताह|हफ्ते)\b/i);
+  const weekMatch = normalized.match(/(\d+)\s*(week|weeks|வாரம்|வாரங்கள்|सप्ताह|हफ्ते)/i);
   if (weekMatch) return Number(weekMatch[1]) * 7;
 
-  const monthMatch = normalized.match(/(\d+)\s*(month|months|மாதம்|மாதங்கள்|महीना|महीने)\b/i);
+  const monthMatch = normalized.match(/(\d+)\s*(month|months|மாதம்|மாதங்கள்|महीना|महीने)/i);
   if (monthMatch) return Number(monthMatch[1]) * 30;
 
   return null;
@@ -56,7 +56,7 @@ function extractDurationDays(text) {
 function extractSeverity(text, language = 'en') {
   const normalized = normalize(text);
 
-  const numeric = normalized.match(/(?:severity|pain|intensity|தீவிரம்|வலி|तीव्रता|दर्द)\s*(?:is|=|:)?\s*([1-5])\b/i);
+  const numeric = normalized.match(/(?:severity|pain|intensity|தீவிரம்|வலி|तीव्रता|दर्द)\s*(?:is|=|:)?\s*([1-5])/i);
   if (numeric) return Number(numeric[1]);
 
   const aliases = severityMap[language] || severityMap.en;
