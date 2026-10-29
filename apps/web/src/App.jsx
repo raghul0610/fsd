@@ -368,27 +368,100 @@ function Knowledge({ language }) {
 }
 
 function Facilities({ language }) {
-  const [facilities, setFacilities] = useState([]);
-  const [workers, setWorkers] = useState([]);
-  useEffect(() => {
-    (async () => {
-      const lf = await db.facilities.toArray();
-      const lw = await db.workers.toArray();
-      setFacilities(lf);
-      setWorkers(lw);
-      if (navigator.onLine) {
-        try {
-          const [f, w] = await Promise.all([api.facilities(), api.workers()]);
-          if (f.data?.length) { await db.facilities.bulkPut(f.data); setFacilities(f.data); }
-          if (w.data?.length) { await db.workers.bulkPut(w.data); setWorkers(w.data); }
-        } catch { setFacilities(lf); setWorkers(lw); }
-      }
-    })();
-  }, []);
+  // Static directory for the Chennai demo. Facility details are sourced from
+  // public GCC / Chennai District listings; verify locally before visiting.
+  const facilities = [
+    {
+      id: 'gcc-uphc-teynampet',
+      name: 'Government Primary Health Centre, Teynampet',
+      type: 'Urban Primary Health Centre (UPHC)',
+      location: 'Tiruvalluvar Salai, Teynampet, Chennai, Tamil Nadu 600018',
+      contact: 'Contact / timings: verify with Greater Chennai Corporation',
+      hours: 'Verify locally',
+      sourceUrl: 'https://chennaicorporation.gov.in/gcc/covid-vaccine/uphc/',
+    },
+    {
+      id: 'gcc-uphc-kilpauk',
+      name: 'Kilpauk Urban Primary Health Centre',
+      type: 'Urban Primary Health Centre (UPHC)',
+      location: 'Temple Street, Kilpauk, Chennai, Tamil Nadu 600010',
+      contact: 'Contact / timings: verify locally',
+      hours: 'Verify locally',
+      sourceUrl: 'https://chennaicorporation.gov.in/gcc/covid-vaccine/uphc/',
+    },
+    {
+      id: 'gcc-uphc-villivakkam',
+      name: 'Government Primary Health Centre, Villivakkam',
+      type: 'Urban Primary Health Centre (UPHC)',
+      location: '24, Venugopalan Street, Agathiyar Nagar, Villivakkam, Chennai, Tamil Nadu 600049',
+      contact: 'Contact: verify locally',
+      hours: 'Hours may change; verify locally',
+      sourceUrl: 'https://chennaicorporation.gov.in/gcc/covid-vaccine/uphc/',
+    },
+    {
+      id: 'gcc-uchc-adyar',
+      name: 'Urban Community Health Centre, Adyar',
+      type: 'Urban Community Health Centre (UCHC)',
+      location: 'Venkata Rathinam Nagar, Adyar, Chennai, Tamil Nadu 600020',
+      contact: 'Contact / timings: verify locally',
+      hours: 'Verify locally',
+      sourceUrl: 'https://data.opencity.in/dataset/chennai-healthcare-uphcs-and-uchcs',
+    },
+    {
+      id: 'rgggh',
+      name: 'Rajiv Gandhi Government General Hospital',
+      type: 'Government general / referral hospital',
+      location: 'Poonamallee High Road, Park Town, Chennai, Tamil Nadu 600003',
+      contact: '044-2530 5000',
+      hours: 'Emergency services; confirm current service details',
+      sourceUrl: 'https://chennai.nic.in/public-utility/government-general-hospital/',
+    },
+    {
+      id: 'royapettah-govt',
+      name: 'Government Royapettah Hospital',
+      type: 'Government hospital',
+      location: 'No. 1, Westcott Road, Royapettah, Chennai, Tamil Nadu 600014',
+      contact: '044-2848 3051',
+      hours: 'Confirm current service details locally',
+      sourceUrl: 'https://chennai.nic.in/public-utility-category/hospitals/page/2/',
+    },
+    {
+      id: 'stanley-govt',
+      name: 'Government Stanley Hospital',
+      type: 'Government hospital',
+      location: 'Old Jail Road, Chennai, Tamil Nadu 600001',
+      contact: '044-2528 1347',
+      hours: 'Confirm current service details locally',
+      sourceUrl: 'https://chennai.nic.in/public-utility-category/hospitals/page/2/',
+    },
+    {
+      id: 'ich-egmore',
+      name: 'Institute of Child Health and Hospital for Children',
+      type: 'Government specialist hospital · children',
+      location: 'Halls Road, Egmore, Chennai, Tamil Nadu 600008',
+      contact: '044-2819 1135',
+      hours: 'Confirm current service details locally',
+      sourceUrl: 'https://chennai.nic.in/public-utility-category/hospitals/page/2/',
+    },
+  ];
 
-  return <><h1>{t(language, 'nearbyCare')}</h1><p className="muted">{t(language, 'directoryWarning')}</p>
-    <h2>{t(language, 'facilities')}</h2>{facilities.map((f) => <div className="panel" key={f.id}><h2>{f.name}</h2><p>{f.type} · {f.location}</p><p>{f.contact} · {f.hours}</p></div>)}
-    <h2>{t(language, 'workers')}</h2>{workers.map((w) => <div className="panel" key={w.id}><h2>{w.name}</h2><p>{w.role} · {w.facility}</p><p>{w.contact}</p></div>)}
+  return <><h1>{t(language, 'nearbyCare')}</h1>
+    <p className="muted">{t(language, 'directoryWarning')}</p>
+    <p className="muted">Static Chennai directory for demonstration. Listings are not live-verified; confirm the address, services, phone number, and opening hours with the facility before travelling.</p>
+    <h2>{t(language, 'facilities')}</h2>
+    {facilities.map((f) => <article className="panel" key={f.id}>
+      <h2>{f.name}</h2>
+      <p>{f.type}</p>
+      <p>{f.location}</p>
+      <p>{f.contact} · {f.hours}</p>
+      <p><a href={f.sourceUrl} target="_blank" rel="noreferrer">Check public listing</a></p>
+    </article>)}
+    <h2>{t(language, 'workers')}</h2>
+    <article className="panel">
+      <h2>ASHA / Village Health Nurse support</h2>
+      <p>Community health worker · Chennai</p>
+      <p>No individual worker identity or direct contact is listed here because it has not been independently verified. Ask the nearest Urban Primary Health Centre or Greater Chennai Corporation health office to connect you with the local ASHA or Village Health Nurse.</p>
+    </article>
   </>;
 }
 
